@@ -65,7 +65,7 @@
         #viewer canvas { display:block; width:100%!important; height:100%!important; outline:none; }
 
         #overlay {
-            position:absolute; inset:0; background:var(--azul-estrutural);
+            position:absolute; inset:0; background:#ffffff;
             display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; z-index:30;
         }
         #overlay.gone { display:none; }
@@ -84,7 +84,10 @@
 <body>
 
 <header>
-    <img class="logo" src="logo.png" alt="Maré Engenharia" onerror="this.style.display='none'">
+    <div class="parceiro">
+        <span class="parceiro-label">Projeto</span>
+        <img class="logo" src="logo.png" alt="Maré Engenharia" onerror="this.style.display='none'">
+    </div>
     <div class="sep"></div>
     <div class="parceiro">
         <span class="parceiro-label">Realização</span>
@@ -97,7 +100,6 @@
     </div>
     <div class="sep"></div>
     <div class="proj-info">
-        <span class="proj-label">Projeto</span>
         <div class="proj-nome">CHALÉ SOLARA</div>
         <div class="proj-cli">BIM — Instalações Prediais</div>
     </div>
@@ -106,7 +108,7 @@
 <div id="layout">
     <div id="sidebar">
         <div class="sb-title">Disciplinas</div>
-        <button class="disc-btn wait" id="btn-arc"   onclick="tog('arc')"   disabled><span class="dot" style="background:#B0BEC5"></span><span class="lbl">Arquitetura</span><span class="eye" id="eye-arc">👁</span></button>
+        <button class="disc-btn wait" id="btn-arc"   onclick="tog('arc')"   disabled><span class="dot" style="background:#FF9800"></span><span class="lbl">Climatização</span><span class="eye" id="eye-arc">👁</span></button>
         <button class="disc-btn wait" id="btn-hidro" onclick="tog('hidro')" disabled><span class="dot" style="background:#4FC3F7"></span><span class="lbl">Hidrossanitário</span><span class="eye" id="eye-hidro">👁</span></button>
         <button class="disc-btn wait" id="btn-ele"   onclick="tog('ele')"   disabled><span class="dot" style="background:#FFD54F"></span><span class="lbl">Elétrico</span><span class="eye" id="eye-ele">👁</span></button>
         <div class="divider"></div>
@@ -172,7 +174,7 @@ const H = () => container.clientHeight;
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(W(), H());
-renderer.setClearColor(0x12223C);
+renderer.setClearColor(0xffffff);
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -256,7 +258,7 @@ function ifcParaGrupo(modelID) {
 
 // ── Disciplinas ───────────────────────────────────────────────────────────
 const DISCS = {
-    arc  : { nome: 'CHALE-ARC-EX-0001-MODE-R00.ifc', label: 'Arquitetura'     },
+    arc  : { nome: 'CHALE-ARC-EX-0001-MODE-R00.ifc', label: 'Climatização'    },
     hidro: { nome: 'CHALE-HID-EX-0001-MODE-R00.ifc', label: 'Hidrossanitário' },
     ele  : { nome: 'CHALE-ELE-EX-0001-MODE-R00.ifc', label: 'Elétrico'        },
 };
@@ -265,11 +267,26 @@ const modelos = {};
 const visivel = {};
 let carregados = 0;
 const total = Object.keys(DISCS).length;
-let primeiroCarregado = false;
+
+function ajustarCamera() {
+    // Calcula bounding box de TODOS os modelos carregados juntos
+    const box = new THREE.Box3();
+    for (const g of Object.values(modelos)) box.expandByObject(g);
+    if (box.isEmpty()) return;
+    const center = box.getCenter(new THREE.Vector3());
+    const size   = box.getSize(new THREE.Vector3());
+    const dist   = Math.max(size.x, size.y, size.z) * 1.8;
+    camera.position.set(center.x + dist, center.y + dist * 0.6, center.z + dist);
+    controls.target.copy(center);
+    controls.update();
+}
 
 function concluir(id) {
     carregados++;
-    if (carregados >= total) document.getElementById('overlay').classList.add('gone');
+    if (carregados >= total) {
+        document.getElementById('overlay').classList.add('gone');
+        ajustarCamera();
+    }
 }
 
 function marcarFalha(id, msg) {
@@ -297,24 +314,15 @@ async function carregar(id, cfg) {
 
     setMsg(`Processando ${cfg.label}…`);
     try {
-        const modelID = ifcApi.OpenModel(data, { COORDINATE_TO_ORIGIN: true });
+        // Sem COORDINATE_TO_ORIGIN — preserva coordenadas nativas do IFC
+        // para que todos os modelos se alinhem no mesmo ponto de referência
+        const modelID = ifcApi.OpenModel(data);
         const grupo = ifcParaGrupo(modelID);
         ifcApi.CloseModel(modelID);
 
         modelos[id] = grupo;
         visivel[id] = true;
         scene.add(grupo);
-
-        if (!primeiroCarregado) {
-            primeiroCarregado = true;
-            const box = new THREE.Box3().setFromObject(grupo);
-            const center = box.getCenter(new THREE.Vector3());
-            const size   = box.getSize(new THREE.Vector3());
-            const dist   = Math.max(size.x, size.y, size.z) * 1.6;
-            camera.position.set(center.x + dist, center.y + dist * 0.6, center.z + dist);
-            controls.target.copy(center);
-            controls.update();
-        }
 
         const btn = document.getElementById(`btn-${id}`);
         btn.classList.remove('wait'); btn.classList.add('on'); btn.disabled = false;
