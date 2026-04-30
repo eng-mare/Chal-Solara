@@ -128,19 +128,49 @@
     <div id="msg-load">Iniciando visualizador…</div>
 </div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
-
 <script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { IFCLoader } from 'https://cdn.jsdelivr.net/npm/web-ifc-three@0.0.136/IFCLoader.js';
+// ── Helpers de mensagem ───────────────────────────────────────────────────
+const setMsg = t => { document.getElementById('msg-load').textContent = t; };
+const setErr = t => {
+    const el = document.getElementById('msg-load');
+    el.textContent = '⚠ ' + t;
+    el.style.color = '#FF7043';
+    el.style.maxWidth = '340px';
+    el.style.textAlign = 'center';
+    el.style.lineHeight = '1.6';
+};
+
+// ── Carregar bibliotecas com erro visível ─────────────────────────────────
+setMsg('Carregando Three.js…');
+let THREE, OrbitControls, IFCLoader;
+
+try {
+    THREE = await import('https://esm.sh/three@0.135.0');
+} catch (e) {
+    setErr('Falha ao carregar Three.js.\n' + e.message);
+    console.error('[VIEWER] three:', e);
+    throw e;
+}
+
+try {
+    const m = await import('https://esm.sh/three@0.135.0/examples/jsm/controls/OrbitControls');
+    OrbitControls = m.OrbitControls;
+} catch (e) {
+    setErr('Falha ao carregar OrbitControls.\n' + e.message);
+    console.error('[VIEWER] OrbitControls:', e);
+    throw e;
+}
+
+setMsg('Carregando engine IFC…');
+try {
+    const m = await import('https://esm.sh/web-ifc-three@0.0.116');
+    IFCLoader = m.IFCLoader;
+    if (!IFCLoader) throw new Error('IFCLoader não encontrado no módulo web-ifc-three');
+} catch (e) {
+    setErr('Falha ao carregar IFCLoader.\n' + e.message);
+    console.error('[VIEWER] IFCLoader:', e);
+    throw e;
+}
 
 // ── Cena ──────────────────────────────────────────────────────────────────
 const container = document.getElementById('viewer');
@@ -154,11 +184,9 @@ renderer.setClearColor(0x12223C);
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-
-const camera = new THREE.PerspectiveCamera(60, W()/H(), 0.01, 1000);
+const camera = new THREE.PerspectiveCamera(60, W()/H(), 0.01, 2000);
 camera.position.set(15, 10, 15);
 
-// Iluminação
 scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 const sol = new THREE.DirectionalLight(0xffffff, 1.0);
 sol.position.set(10, 20, 10);
@@ -167,15 +195,21 @@ const fill = new THREE.DirectionalLight(0x426B99, 0.3);
 fill.position.set(-10, 5, -10);
 scene.add(fill);
 
-// Controles
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
+controls.enableDamping  = true;
+controls.dampingFactor  = 0.05;
 controls.screenSpacePanning = true;
 
 // ── IFC Loader ────────────────────────────────────────────────────────────
+setMsg('Iniciando WASM…');
 const ifcLoader = new IFCLoader();
-await ifcLoader.ifcManager.setWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.44/');
+try {
+    await ifcLoader.ifcManager.setWasmPath('https://unpkg.com/web-ifc@0.0.44/');
+} catch (e) {
+    setErr('Falha ao iniciar WASM web-ifc.\n' + e.message);
+    console.error('[VIEWER] WASM:', e);
+    throw e;
+}
 
 // ── Disciplinas ───────────────────────────────────────────────────────────
 const DISCS = {
@@ -213,8 +247,9 @@ async function carregar(id, cfg) {
         btn.classList.remove('wait');
         btn.classList.add('on');
         btn.disabled = false;
+        console.log(`[VIEWER] ${cfg.label} carregado ✓`);
     } catch (e) {
-        console.warn(`[${id}] não carregado:`, e.message);
+        console.warn(`[VIEWER] ${id} falhou:`, e.message);
         const btn = document.getElementById(`btn-${id}`);
         btn.classList.remove('wait');
         btn.disabled = true;
@@ -237,21 +272,18 @@ window.tog = function(id) {
     document.getElementById(`eye-${id}`).textContent = visivel[id] ? '👁' : '🚫';
 };
 
-function setMsg(t) { document.getElementById('msg-load').textContent = t; }
-
-// Carregar todos
+// Carregar todos em sequência
 for (const [id, cfg] of Object.entries(DISCS)) {
     await carregar(id, cfg);
 }
 
-// ── Loop ──────────────────────────────────────────────────────────────────
+// ── Loop de renderização ──────────────────────────────────────────────────
 (function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
 })();
 
-// Redimensionar
 new ResizeObserver(() => {
     camera.aspect = W() / H();
     camera.updateProjectionMatrix();
