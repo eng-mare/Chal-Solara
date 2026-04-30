@@ -30,7 +30,8 @@
         .parceiro { display:flex; flex-direction:column; align-items:center; gap:3px; }
         .parceiro-label { font-size:8px; font-weight:300; letter-spacing:2px; text-transform:uppercase; color:var(--azul-tecnico); }
         .parceiro img { height:24px; object-fit:contain; filter:brightness(0) invert(1); }
-        .proj-info { margin-left:auto; text-align:right; }
+        .proj-info  { margin-left:auto; text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+        .proj-label { font-size:8px; font-weight:300; letter-spacing:2px; text-transform:uppercase; color:var(--azul-tecnico); }
         .proj-nome  { font-size:13px; font-weight:700; letter-spacing:1.5px; }
         .proj-cli   { font-size:10px; color:var(--azul-tecnico); font-weight:300; }
 
@@ -84,10 +85,6 @@
 
 <header>
     <img class="logo" src="logo.png" alt="Maré Engenharia" onerror="this.style.display='none'">
-    <div class="brand">
-        <span class="brand-name">MARÉ</span>
-        <span class="brand-sub">Engenharia</span>
-    </div>
     <div class="sep"></div>
     <div class="parceiro">
         <span class="parceiro-label">Realização</span>
@@ -96,11 +93,13 @@
     <div class="sep"></div>
     <div class="parceiro">
         <span class="parceiro-label">Cliente</span>
-        <img src="logo-washington.png" alt="Washington Construtora" onerror="this.style.display='none'">
+        <img src="logo-washington.png" alt="Washington Construtora" style="filter:none;" onerror="this.style.display='none'">
     </div>
+    <div class="sep"></div>
     <div class="proj-info">
+        <span class="proj-label">Projeto</span>
         <div class="proj-nome">CHALÉ SOLARA</div>
-        <div class="proj-cli">Projeto BIM — Instalações Prediais</div>
+        <div class="proj-cli">BIM — Instalações Prediais</div>
     </div>
 </header>
 
@@ -129,50 +128,40 @@
 </div>
 
 <script type="module">
-// ── Helpers de mensagem ───────────────────────────────────────────────────
-const setMsg = t => { document.getElementById('msg-load').textContent = t; };
+// ── Mensagens ─────────────────────────────────────────────────────────────
+const setMsg = t => { document.getElementById('msg-load').textContent = t; console.log('[BIM]', t); };
 const setErr = t => {
     const el = document.getElementById('msg-load');
     el.textContent = '⚠ ' + t;
     el.style.color = '#FF7043';
-    el.style.maxWidth = '340px';
+    el.style.maxWidth = '360px';
     el.style.textAlign = 'center';
-    el.style.lineHeight = '1.6';
+    el.style.lineHeight = '1.7';
+    el.style.fontSize = '11px';
+    console.error('[BIM] ERRO:', t);
 };
 
-// ── Carregar bibliotecas com erro visível ─────────────────────────────────
+// ── Carregar Three.js ─────────────────────────────────────────────────────
 setMsg('Carregando Three.js…');
-let THREE, OrbitControls, IFCLoader;
-
+let THREE, OrbitControls;
 try {
-    THREE = await import('https://esm.sh/three@0.135.0');
-} catch (e) {
-    setErr('Falha ao carregar Three.js.\n' + e.message);
-    console.error('[VIEWER] three:', e);
-    throw e;
+    THREE = await import('https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js');
+    const oc = await import('https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/controls/OrbitControls.js');
+    OrbitControls = oc.OrbitControls;
+} catch(e) {
+    setErr('Falha ao carregar Three.js\n' + e.message); throw e;
 }
 
+// ── Carregar web-ifc ──────────────────────────────────────────────────────
+setMsg('Carregando engine IFC (web-ifc)…');
+let WebIFC;
 try {
-    const m = await import('https://esm.sh/three@0.135.0/examples/jsm/controls/OrbitControls');
-    OrbitControls = m.OrbitControls;
-} catch (e) {
-    setErr('Falha ao carregar OrbitControls.\n' + e.message);
-    console.error('[VIEWER] OrbitControls:', e);
-    throw e;
+    WebIFC = await import('https://cdn.jsdelivr.net/npm/web-ifc@0.0.44/web-ifc-api.js');
+} catch(e) {
+    setErr('Falha ao carregar web-ifc\n' + e.message); throw e;
 }
 
-setMsg('Carregando engine IFC…');
-try {
-    const m = await import('https://esm.sh/web-ifc-three@0.0.116');
-    IFCLoader = m.IFCLoader;
-    if (!IFCLoader) throw new Error('IFCLoader não encontrado no módulo web-ifc-three');
-} catch (e) {
-    setErr('Falha ao carregar IFCLoader.\n' + e.message);
-    console.error('[VIEWER] IFCLoader:', e);
-    throw e;
-}
-
-// ── Cena ──────────────────────────────────────────────────────────────────
+// ── Cena Three.js ─────────────────────────────────────────────────────────
 const container = document.getElementById('viewer');
 const W = () => container.clientWidth;
 const H = () => container.clientHeight;
@@ -184,38 +173,89 @@ renderer.setClearColor(0x12223C);
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, W()/H(), 0.01, 2000);
+const camera = new THREE.PerspectiveCamera(60, W()/H(), 0.01, 5000);
 camera.position.set(15, 10, 15);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+scene.add(new THREE.AmbientLight(0xffffff, 0.9));
 const sol = new THREE.DirectionalLight(0xffffff, 1.0);
 sol.position.set(10, 20, 10);
 scene.add(sol);
-const fill = new THREE.DirectionalLight(0x426B99, 0.3);
+const fill = new THREE.DirectionalLight(0x426B99, 0.4);
 fill.position.set(-10, 5, -10);
 scene.add(fill);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping  = true;
-controls.dampingFactor  = 0.05;
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
 controls.screenSpacePanning = true;
 
-// ── IFC Loader ────────────────────────────────────────────────────────────
+// ── Inicializar API IFC ───────────────────────────────────────────────────
 setMsg('Iniciando WASM…');
-const ifcLoader = new IFCLoader();
+const ifcApi = new WebIFC.IfcAPI();
+ifcApi.SetWasmPath('https://cdn.jsdelivr.net/npm/web-ifc@0.0.44/');
 try {
-    await ifcLoader.ifcManager.setWasmPath('https://unpkg.com/web-ifc@0.0.44/');
-} catch (e) {
-    setErr('Falha ao iniciar WASM web-ifc.\n' + e.message);
-    console.error('[VIEWER] WASM:', e);
-    throw e;
+    await ifcApi.Init();
+} catch(e) {
+    setErr('Falha ao iniciar WASM\n' + e.message); throw e;
+}
+
+// ── Detectar caminho dos arquivos (raiz ou models/) ───────────────────────
+async function resolverCaminho(nome) {
+    for (const prefixo of ['', 'models/']) {
+        try {
+            const r = await fetch(prefixo + nome, { method: 'HEAD' });
+            if (r.ok) return prefixo + nome;
+        } catch (_) {}
+    }
+    return null;
+}
+
+// ── Extrair geometria IFC → Three.js ─────────────────────────────────────
+function ifcParaGrupo(modelID) {
+    const grupo = new THREE.Group();
+    ifcApi.StreamAllMeshes(modelID, mesh => {
+        const geoms = mesh.geometries;
+        for (let i = 0; i < geoms.size(); i++) {
+            const pg = geoms.get(i);
+            const gd = ifcApi.GetGeometry(modelID, pg.geometryExpressID);
+            const verts   = ifcApi.GetVertexArray(gd.GetVertexData(), gd.GetVertexDataSize());
+            const indices = ifcApi.GetIndexArray(gd.GetIndexData(), gd.GetIndexDataSize());
+
+            const pos = new Float32Array(verts.length / 2);
+            const nor = new Float32Array(verts.length / 2);
+            for (let j = 0; j < verts.length; j += 6) {
+                const b = (j / 6) * 3;
+                pos[b] = verts[j];   pos[b+1] = verts[j+1]; pos[b+2] = verts[j+2];
+                nor[b] = verts[j+3]; nor[b+1] = verts[j+4]; nor[b+2] = verts[j+5];
+            }
+
+            const geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geom.setAttribute('normal',   new THREE.BufferAttribute(nor, 3));
+            geom.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+
+            const c = pg.color;
+            const mat = new THREE.MeshLambertMaterial({
+                color: new THREE.Color(c.x, c.y, c.z),
+                transparent: c.w < 0.99,
+                opacity: c.w,
+                side: THREE.DoubleSide
+            });
+
+            const m3d = new THREE.Mesh(geom, mat);
+            m3d.applyMatrix4(new THREE.Matrix4().fromArray(pg.flatTransformation));
+            grupo.add(m3d);
+            gd.delete();
+        }
+    });
+    return grupo;
 }
 
 // ── Disciplinas ───────────────────────────────────────────────────────────
 const DISCS = {
-    arc  : { arquivo: 'CHALE-ARC-EX-0001-MODE-R00.ifc', label: 'Arquitetura'     },
-    hidro: { arquivo: 'CHALE-HID-EX-0001-MODE-R00.ifc', label: 'Hidrossanitário' },
-    ele  : { arquivo: 'CHALE-ELE-EX-0001-MODE-R00.ifc', label: 'Elétrico'        },
+    arc  : { nome: 'CHALE-ARC-EX-0001-MODE-R00.ifc', label: 'Arquitetura'     },
+    hidro: { nome: 'CHALE-HID-EX-0001-MODE-R00.ifc', label: 'Hidrossanitário' },
+    ele  : { nome: 'CHALE-ELE-EX-0001-MODE-R00.ifc', label: 'Elétrico'        },
 };
 
 const modelos = {};
@@ -224,43 +264,60 @@ let carregados = 0;
 const total = Object.keys(DISCS).length;
 let primeiroCarregado = false;
 
+function concluir(id) {
+    carregados++;
+    if (carregados >= total) document.getElementById('overlay').classList.add('gone');
+}
+
+function marcarFalha(id, msg) {
+    const btn = document.getElementById(`btn-${id}`);
+    btn.classList.remove('wait');
+    btn.disabled = true;
+    btn.style.opacity = '0.25';
+    btn.title = msg;
+    console.warn(`[BIM] ${id} falhou: ${msg}`);
+    concluir(id);
+}
+
 async function carregar(id, cfg) {
-    setMsg(`Carregando ${cfg.label}…`);
+    setMsg(`Localizando ${cfg.label}…`);
+    const caminho = await resolverCaminho(cfg.nome);
+    if (!caminho) { marcarFalha(id, 'Arquivo não encontrado no servidor'); return; }
+
+    setMsg(`Baixando ${cfg.label}…`);
+    let data;
     try {
-        const modelo = await ifcLoader.loadAsync(cfg.arquivo);
-        modelos[id] = modelo;
+        const resp = await fetch(caminho);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        data = new Uint8Array(await resp.arrayBuffer());
+    } catch(e) { marcarFalha(id, 'Download: ' + e.message); return; }
+
+    setMsg(`Processando ${cfg.label}…`);
+    try {
+        const modelID = ifcApi.OpenModel(data, { COORDINATE_TO_ORIGIN: true });
+        const grupo = ifcParaGrupo(modelID);
+        ifcApi.CloseModel(modelID);
+
+        modelos[id] = grupo;
         visivel[id] = true;
-        scene.add(modelo);
+        scene.add(grupo);
 
         if (!primeiroCarregado) {
             primeiroCarregado = true;
-            const box = new THREE.Box3().setFromObject(modelo);
+            const box = new THREE.Box3().setFromObject(grupo);
             const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
-            const dist = Math.max(size.x, size.y, size.z) * 1.5;
-            camera.position.set(center.x + dist, center.y + dist * 0.5, center.z + dist);
+            const size   = box.getSize(new THREE.Vector3());
+            const dist   = Math.max(size.x, size.y, size.z) * 1.6;
+            camera.position.set(center.x + dist, center.y + dist * 0.6, center.z + dist);
             controls.target.copy(center);
             controls.update();
         }
 
         const btn = document.getElementById(`btn-${id}`);
-        btn.classList.remove('wait');
-        btn.classList.add('on');
-        btn.disabled = false;
-        console.log(`[VIEWER] ${cfg.label} carregado ✓`);
-    } catch (e) {
-        console.warn(`[VIEWER] ${id} falhou:`, e.message);
-        const btn = document.getElementById(`btn-${id}`);
-        btn.classList.remove('wait');
-        btn.disabled = true;
-        btn.style.opacity = '0.25';
-        btn.title = 'Arquivo não encontrado';
-    } finally {
-        carregados++;
-        if (carregados >= total) {
-            document.getElementById('overlay').classList.add('gone');
-        }
-    }
+        btn.classList.remove('wait'); btn.classList.add('on'); btn.disabled = false;
+        console.log(`[BIM] ${cfg.label} ✓`);
+        concluir(id);
+    } catch(e) { marcarFalha(id, 'Parse: ' + e.message); }
 }
 
 window.tog = function(id) {
@@ -272,24 +329,17 @@ window.tog = function(id) {
     document.getElementById(`eye-${id}`).textContent = visivel[id] ? '👁' : '🚫';
 };
 
-// Carregar todos em sequência
-for (const [id, cfg] of Object.entries(DISCS)) {
-    await carregar(id, cfg);
-}
+// Carregar em paralelo
+for (const [id, cfg] of Object.entries(DISCS)) carregar(id, cfg);
 
-// ── Loop de renderização ──────────────────────────────────────────────────
-(function animate() {
-    requestAnimationFrame(animate);
-    controls.update();
-    renderer.render(scene, camera);
-})();
+// ── Loop ──────────────────────────────────────────────────────────────────
+(function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
 
 new ResizeObserver(() => {
     camera.aspect = W() / H();
     camera.updateProjectionMatrix();
     renderer.setSize(W(), H());
 }).observe(container);
-
 </script>
 </body>
 </html>
