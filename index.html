@@ -111,6 +111,7 @@
         <button class="disc-btn wait" id="btn-arc"   onclick="tog('arc')"   disabled><span class="dot" style="background:#FF9800"></span><span class="lbl">Climatização</span><span class="eye" id="eye-arc">👁</span></button>
         <button class="disc-btn wait" id="btn-hidro" onclick="tog('hidro')" disabled><span class="dot" style="background:#4FC3F7"></span><span class="lbl">Hidrossanitário</span><span class="eye" id="eye-hidro">👁</span></button>
         <button class="disc-btn wait" id="btn-ele"   onclick="tog('ele')"   disabled><span class="dot" style="background:#FFD54F"></span><span class="lbl">Elétrico</span><span class="eye" id="eye-ele">👁</span></button>
+        <button class="disc-btn wait" id="btn-mob"   onclick="tog('mob')"   disabled><span class="dot" style="background:#A5D6A7"></span><span class="lbl">Mobiliário</span><span class="eye" id="eye-mob">👁</span></button>
         <div class="divider"></div>
         <div class="dica">
             <strong>Navegação 3D</strong>
@@ -204,15 +205,34 @@ try {
     setErr('Falha ao iniciar WASM\n' + e.message); throw e;
 }
 
-// ── Detectar caminho dos arquivos (raiz ou models/) ───────────────────────
+// ── Detectar caminho dos arquivos (raiz ou models/, .ifc ou .ifc.gz) ──────
 async function resolverCaminho(nome) {
+    const tentativas = [];
     for (const prefixo of ['', 'models/']) {
+        tentativas.push(prefixo + nome);        // .ifc normal
+        tentativas.push(prefixo + nome + '.gz'); // .ifc.gz compactado
+    }
+    for (const url of tentativas) {
         try {
-            const r = await fetch(prefixo + nome, { method: 'HEAD' });
-            if (r.ok) return prefixo + nome;
+            const r = await fetch(url, { method: 'HEAD' });
+            if (r.ok) return url;
         } catch (_) {}
     }
     return null;
+}
+
+// ── Baixar e descompactar se for .gz ─────────────────────────────────────
+async function fetchIFC(url) {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if (url.endsWith('.gz')) {
+        // DecompressionStream é suportado por todos os browsers modernos
+        const arr = await new Response(
+            resp.body.pipeThrough(new DecompressionStream('gzip'))
+        ).arrayBuffer();
+        return new Uint8Array(arr);
+    }
+    return new Uint8Array(await resp.arrayBuffer());
 }
 
 // ── Extrair geometria IFC → Three.js ─────────────────────────────────────
@@ -261,6 +281,7 @@ const DISCS = {
     arc  : { nome: 'CHALE-ARC-EX-0001-MODE-R00.ifc', label: 'Climatização'    },
     hidro: { nome: 'CHALE-HID-EX-0001-MODE-R00.ifc', label: 'Hidrossanitário' },
     ele  : { nome: 'CHALE-ELE-EX-0001-MODE-R00.ifc', label: 'Elétrico'        },
+    mob  : { nome: 'CHALE-MOB-EX-0001-MODE-R00.ifc', label: 'Mobiliário'      },
 };
 
 const modelos = {};
@@ -307,9 +328,7 @@ async function carregar(id, cfg) {
     setMsg(`Baixando ${cfg.label}…`);
     let data;
     try {
-        const resp = await fetch(caminho);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        data = new Uint8Array(await resp.arrayBuffer());
+        data = await fetchIFC(caminho);
     } catch(e) { marcarFalha(id, 'Download: ' + e.message); return; }
 
     setMsg(`Processando ${cfg.label}…`);
