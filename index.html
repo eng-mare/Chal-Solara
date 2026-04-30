@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Chalé Solara — Visualizador BIM | Maré Engenharia</title>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* ── Maré Engenharia — Paleta Oficial ── */
+        :root {
+            --azul-estrutural : #12223C;
+            --azul-fundacao   : #182A47;
+            --azul-mare       : #203864;
+            --azul-projeto    : #2F4C73;
+            --azul-tecnico    : #426B99;
+            --branco          : #FFFFFF;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            font-family: 'Lato', sans-serif;
+            background: var(--azul-estrutural);
+            color: var(--branco);
+            overflow: hidden;
+        }
+
+        /* ── Cabeçalho ── */
+        header {
+            height: 58px;
+            background: var(--azul-fundacao);
+            border-bottom: 2px solid var(--azul-tecnico);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 14px;
+            position: relative;
+            z-index: 10;
+        }
+
+        header img.logo {
+            height: 36px;
+            object-fit: contain;
+        }
+
+        .brand { display: flex; flex-direction: column; line-height: 1.2; }
+        .brand-name { font-size: 16px; font-weight: 900; letter-spacing: 2.5px; }
+        .brand-sub  { font-size: 9px;  font-weight: 300; letter-spacing: 3px; color: var(--azul-tecnico); text-transform: uppercase; }
+
+        .separador-header {
+            width: 1px;
+            height: 34px;
+            background: var(--azul-projeto);
+            margin: 0 6px;
+        }
+
+        .realizacao {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .realizacao-label {
+            font-size: 8px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--azul-tecnico);
+        }
+
+        .realizacao img {
+            height: 26px;
+            object-fit: contain;
+            /* Inverte a logo preta para branca no fundo escuro */
+            filter: invert(1) brightness(2);
+        }
+
+        .proj-info { margin-left: auto; text-align: right; }
+        .proj-nome  { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+        .proj-cli   { font-size: 10px; color: var(--azul-tecnico); font-weight: 300; letter-spacing: 0.5px; }
+
+        /* ── Layout principal ── */
+        #layout { display: flex; height: calc(100% - 58px); }
+
+        /* ── Barra lateral ── */
+        #sidebar {
+            width: 230px;
+            background: var(--azul-fundacao);
+            border-right: 1px solid var(--azul-projeto);
+            padding: 18px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            flex-shrink: 0;
+        }
+
+        .sb-title {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--azul-tecnico);
+            margin-bottom: 4px;
+        }
+
+        .disc-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 13px;
+            border: 1px solid var(--azul-projeto);
+            border-radius: 7px;
+            background: transparent;
+            color: var(--branco);
+            font-family: 'Lato', sans-serif;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background .15s, border-color .15s, opacity .15s;
+            width: 100%;
+            text-align: left;
+        }
+        .disc-btn:hover:not(:disabled)  { background: var(--azul-mare); }
+        .disc-btn.on    { background: var(--azul-mare); border-color: var(--azul-tecnico); }
+        .disc-btn.off   { opacity: 0.35; }
+        .disc-btn.wait  { opacity: 0.55; cursor: default; }
+        .disc-btn:disabled { cursor: default; }
+
+        .dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+        .lbl { flex: 1; }
+        .eye { font-size: 13px; line-height: 1; }
+
+        .divider { height: 1px; background: var(--azul-projeto); margin: 4px 0; }
+
+        .dica {
+            margin-top: auto;
+            padding: 11px 12px;
+            background: var(--azul-mare);
+            border-radius: 7px;
+            font-size: 10px;
+            color: var(--azul-tecnico);
+            line-height: 1.85;
+        }
+        .dica strong {
+            display: block;
+            color: var(--branco);
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .rodape {
+            padding-top: 12px;
+            font-size: 9px;
+            color: var(--azul-projeto);
+            text-align: center;
+            letter-spacing: 0.5px;
+            line-height: 1.6;
+        }
+
+        /* ── Viewport ── */
+        #viewer { flex: 1; position: relative; overflow: hidden; }
+        #viewer canvas { display: block; width: 100% !important; height: 100% !important; }
+
+        /* ── Overlay de carregamento ── */
+        #overlay {
+            position: absolute;
+            inset: 0;
+            background: var(--azul-estrutural);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            z-index: 30;
+            transition: opacity .4s;
+        }
+        #overlay.gone { display: none; }
+
+        .spinner {
+            width: 46px; height: 46px;
+            border: 3px solid var(--azul-projeto);
+            border-top-color: var(--azul-tecnico);
+            border-radius: 50%;
+            animation: giro .8s linear infinite;
+        }
+        @keyframes giro { to { transform: rotate(360deg); } }
+
+        #msg-load {
+            font-size: 12px;
+            color: var(--azul-tecnico);
+            letter-spacing: 1.5px;
+            font-weight: 300;
+        }
+
+        /* ── Responsivo Mobile ── */
+        @media (max-width: 620px) {
+            #sidebar {
+                width: 100%;
+                height: auto;
+                flex-direction: row;
+                flex-wrap: wrap;
+                padding: 8px 10px;
+                border-right: none;
+                border-bottom: 1px solid var(--azul-projeto);
+                gap: 6px;
+            }
+            .sb-title, .divider, .dica, .rodape { display: none; }
+            .disc-btn { flex: 1; min-width: 105px; padding: 8px 10px; }
+            #layout { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Cabeçalho ── -->
+<header>
+    <!-- Projetista -->
+    <img class="logo" src="logo.png" alt="Maré Engenharia" onerror="this.style.display='none'">
+    <div class="brand">
+        <span class="brand-name">MARÉ</span>
+        <span class="brand-sub">Engenharia</span>
+    </div>
+
+    <div class="separador-header"></div>
+
+    <!-- Realização -->
+    <div class="realizacao">
+        <span class="realizacao-label">Realização</span>
+        <img src="logo-camacho.png" alt="Camacho Construct" onerror="this.style.display='none'">
+    </div>
+
+    <div class="separador-header"></div>
+
+    <!-- Cliente -->
+    <div class="realizacao">
+        <span class="realizacao-label">Cliente</span>
+        <img src="logo-washington.png" alt="Washington Construtora" onerror="this.style.display='none'">
+    </div>
+
+    <div class="proj-info">
+        <div class="proj-nome">CHALÉ SOLARA</div>
+        <div class="proj-cli">Projeto BIM — Instalações Prediais</div>
+    </div>
+</header>
+
+<!-- ── Layout ── -->
+<div id="layout">
+
+    <!-- Barra lateral -->
+    <div id="sidebar">
+        <div class="sb-title">Disciplinas</div>
+
+        <button class="disc-btn wait" id="btn-hidro" onclick="alternar('hidro')" disabled>
+            <span class="dot" style="background:#4FC3F7"></span>
+            <span class="lbl">Hidrossanitário</span>
+            <span class="eye" id="eye-hidro">👁</span>
+        </button>
+
+        <button class="disc-btn wait" id="btn-cli" onclick="alternar('cli')" disabled>
+            <span class="dot" style="background:#81C784"></span>
+            <span class="lbl">Climatização</span>
+            <span class="eye" id="eye-cli">👁</span>
+        </button>
+
+        <button class="disc-btn wait" id="btn-ele" onclick="alternar('ele')" disabled>
+            <span class="dot" style="background:#FFD54F"></span>
+            <span class="lbl">Elétrico</span>
+            <span class="eye" id="eye-ele">👁</span>
+        </button>
+
+        <div class="divider"></div>
+
+        <div class="dica">
+            <strong>Navegação 3D</strong>
+            🖱 Girar — arrastar (esq)<br>
+            🖱 Mover — arrastar (dir)<br>
+            🔲 Zoom — scroll / pinça<br>
+            📱 Mobile — dois dedos
+        </div>
+
+        <div class="rodape">
+            Maré Engenharia<br>
+            Eng.º Felipe Moreno
+        </div>
+    </div>
+
+    <!-- Viewport 3D -->
+    <div id="viewer"></div>
+</div>
+
+<!-- Overlay de loading -->
+<div id="overlay">
+    <div class="spinner"></div>
+    <div id="msg-load">Iniciando visualizador…</div>
+</div>
+
+<!-- ── Scripts ── -->
+<script src="https://unpkg.com/three@0.135.0/build/three.min.js"></script>
+<script src="https://unpkg.com/web-ifc-viewer@1.0.221/dist/index.js"></script>
+
+<script>
+// ── Configurações ──────────────────────────────────────────────────────────
+const WASM_PATH = 'https://unpkg.com/web-ifc@0.0.44/';
+
+const DISCIPLINAS = {
+    hidro : { arquivo: 'models/hidrossanitario.ifc', label: 'Hidrossanitário' },
+    cli   : { arquivo: 'models/climatizacao.ifc',   label: 'Climatização'    },
+    ele   : { arquivo: 'models/eletrico.ifc',        label: 'Elétrico'        },
+};
+
+// ── Estado ─────────────────────────────────────────────────────────────────
+const modelos    = {};
+const visivel    = { hidro: true, cli: true, ele: true };
+let totalCarreg  = 0;
+const totalDisc  = Object.keys(DISCIPLINAS).length;
+let viewer;
+
+// ── Inicialização ──────────────────────────────────────────────────────────
+async function init() {
+    const container = document.getElementById('viewer');
+
+    viewer = new WebIFCViewer.IfcViewerAPI({
+        container,
+        backgroundColor: new THREE.Color(0x12223C),
+    });
+
+    viewer.axes.setAxes();
+    viewer.grid.setGrid();
+
+    await viewer.IFC.setWasmPath(WASM_PATH);
+
+    document.getElementById('msg-load').textContent = 'Carregando modelos…';
+
+    for (const [id, cfg] of Object.entries(DISCIPLINAS)) {
+        await carregar(id, cfg);
+    }
+}
+
+// ── Carregar modelo ────────────────────────────────────────────────────────
+async function carregar(id, cfg) {
+    document.getElementById('msg-load').textContent = `Carregando ${cfg.label}…`;
+    try {
+        const modelo = await viewer.IFC.loadIfcUrl(cfg.arquivo);
+        modelos[id] = modelo;
+
+        const btn = document.getElementById(`btn-${id}`);
+        btn.classList.remove('wait');
+        btn.classList.add('on');
+        btn.disabled = false;
+    } catch (e) {
+        console.warn(`[${id}] não carregado — verifique o arquivo:`, cfg.arquivo);
+        const btn = document.getElementById(`btn-${id}`);
+        btn.classList.remove('wait');
+        btn.disabled = true;
+        btn.title = 'Arquivo não encontrado na pasta /models/';
+    } finally {
+        totalCarreg++;
+        if (totalCarreg >= totalDisc) {
+            document.getElementById('overlay').classList.add('gone');
+        }
+    }
+}
+
+// ── Alternar visibilidade ──────────────────────────────────────────────────
+function alternar(id) {
+    if (!modelos[id]) return;
+    visivel[id] = !visivel[id];
+    modelos[id].visible = visivel[id];
+
+    const btn = document.getElementById(`btn-${id}`);
+    const eye = document.getElementById(`eye-${id}`);
+    btn.classList.toggle('on',  visivel[id]);
+    btn.classList.toggle('off', !visivel[id]);
+    eye.textContent = visivel[id] ? '👁' : '🚫';
+}
+
+// Expor para onclick
+window.alternar = alternar;
+
+// ── Iniciar ────────────────────────────────────────────────────────────────
+init().catch(err => {
+    document.getElementById('msg-load').textContent = 'Erro ao carregar o visualizador.';
+    console.error(err);
+});
+</script>
+</body>
+</html>
