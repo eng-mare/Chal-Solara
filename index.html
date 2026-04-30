@@ -127,7 +127,19 @@
     <div id="msg-load">Iniciando visualizador…</div>
 </div>
 
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/"
+  }
+}
+</script>
+
 <script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
 // ── Mensagens ─────────────────────────────────────────────────────────────
 const setMsg = t => { document.getElementById('msg-load').textContent = t; console.log('[BIM]', t); };
 const setErr = t => {
@@ -141,22 +153,13 @@ const setErr = t => {
     console.error('[BIM] ERRO:', t);
 };
 
-// ── Carregar Three.js ─────────────────────────────────────────────────────
-setMsg('Carregando Three.js…');
-let THREE, OrbitControls;
-try {
-    THREE = await import('https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js');
-    const oc = await import('https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/controls/OrbitControls.js');
-    OrbitControls = oc.OrbitControls;
-} catch(e) {
-    setErr('Falha ao carregar Three.js\n' + e.message); throw e;
-}
+setMsg('Carregando engine IFC…');
 
-// ── Carregar web-ifc ──────────────────────────────────────────────────────
-setMsg('Carregando engine IFC (web-ifc)…');
+// ── Carregar web-ifc (via esm.sh que resolve deps internas) ──────────────
 let WebIFC;
 try {
-    WebIFC = await import('https://cdn.jsdelivr.net/npm/web-ifc@0.0.44/web-ifc-api.js');
+    WebIFC = await import('https://esm.sh/web-ifc@0.0.44');
+    if (!WebIFC.IfcAPI) throw new Error('IfcAPI não encontrado no módulo');
 } catch(e) {
     setErr('Falha ao carregar web-ifc\n' + e.message); throw e;
 }
