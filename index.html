@@ -253,16 +253,22 @@
     <div id="sidebar">
         <div class="sb-title">Disciplinas</div>
 
+        <button class="disc-btn wait" id="btn-arc" onclick="alternar('arc')" disabled>
+            <span class="dot" style="background:#B0BEC5"></span>
+            <span class="lbl">Arquitetura</span>
+            <span class="eye" id="eye-arc">👁</span>
+        </button>
+
+        <button class="disc-btn wait" id="btn-mob" onclick="alternar('mob')" disabled>
+            <span class="dot" style="background:#CE93D8"></span>
+            <span class="lbl">Estrutura / Mob.</span>
+            <span class="eye" id="eye-mob">👁</span>
+        </button>
+
         <button class="disc-btn wait" id="btn-hidro" onclick="alternar('hidro')" disabled>
             <span class="dot" style="background:#4FC3F7"></span>
             <span class="lbl">Hidrossanitário</span>
             <span class="eye" id="eye-hidro">👁</span>
-        </button>
-
-        <button class="disc-btn wait" id="btn-cli" onclick="alternar('cli')" disabled>
-            <span class="dot" style="background:#81C784"></span>
-            <span class="lbl">Climatização</span>
-            <span class="eye" id="eye-cli">👁</span>
         </button>
 
         <button class="disc-btn wait" id="btn-ele" onclick="alternar('ele')" disabled>
@@ -306,9 +312,10 @@
 const WASM_PATH = 'https://unpkg.com/web-ifc@0.0.44/';
 
 const DISCIPLINAS = {
-    hidro : { arquivo: 'models/hidrossanitario.ifc', label: 'Hidrossanitário' },
-    cli   : { arquivo: 'models/climatizacao.ifc',   label: 'Climatização'    },
-    ele   : { arquivo: 'models/eletrico.ifc',        label: 'Elétrico'        },
+    arc   : { arquivo: 'CHALE-ARC-EX-0001-MODE-R00.ifc',    label: 'Arquitetura'       },
+    mob   : { arquivo: 'CHALE-MOB-EX-0001-MODE-R00.ifc.gz', label: 'Estrutura / Mob.'  },
+    hidro : { arquivo: 'CHALE-HID-EX-0001-MODE-R00.ifc',    label: 'Hidrossanitário'   },
+    ele   : { arquivo: 'CHALE-ELE-EX-0001-MODE-R00.ifc',    label: 'Elétrico'          },
 };
 
 // ── Estado ─────────────────────────────────────────────────────────────────
